@@ -24,7 +24,6 @@ class DatasetMultipleFaces(Dataset):
         self.img_transform = img_transform
         self.classes = [ f.path for f in os.scandir(dataset_path) if f.is_dir() ]
         self.images_by_classes = {class_path: load_files_with_given_extension(class_path) for class_path in self.classes}
-        print(self.images_by_classes)
 
     def __len__(self):
         return len(self.all_images_paths)

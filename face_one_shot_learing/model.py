@@ -1,47 +1,46 @@
+"""
+source
+https://github.com/fangpin/siamese-pytorch/blob/master/model.py
+"""
+
 import torch
 import torch.nn as nn
 
-class SiameseNetwork(nn.Module):
+class Siamese(nn.Module):
     def __init__(self):
-        super(SiameseNetwork,self).__init__()
-        self.cnn1 = nn.Sequential(
-            nn.ReflectionPad2d(1),
-            nn.Conv2d(3, 4, kernel_size=3),
+        super(Siamese, self).__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(3, 64, 10),  # 64@96*96
             nn.ReLU(inplace=True),
-            nn.BatchNorm2d(4),
-            
-            nn.ReflectionPad2d(1),
-            nn.Conv2d(4, 8, kernel_size=3),
-            nn.ReLU(inplace=True),
-            nn.BatchNorm2d(8),
-
-            nn.ReflectionPad2d(1),
-            nn.Conv2d(8, 8, kernel_size=3),
-            nn.ReLU(inplace=True),
-            nn.BatchNorm2d(8),
+            nn.MaxPool2d(2),  # 64@48*48
+            nn.Conv2d(64, 128, 7),
+            nn.ReLU(),    # 128@42*42
+            nn.MaxPool2d(2),   # 128@21*21
+            nn.Conv2d(128, 128, 4),
+            nn.ReLU(), # 128@18*18
+            nn.MaxPool2d(2), # 128@9*9
+            nn.Conv2d(128, 256, 4),
+            nn.ReLU(),   # 256@6*6
         )
+        self.liner = nn.Sequential(nn.Linear(6400, 4096), nn.Sigmoid())
+        self.out = nn.Linear(4096, 1)
 
-        self.fc1 = nn.Sequential(
-            nn.Linear(8*100*100, 500),
-            nn.ReLU(inplace=True),
-            nn.Linear(500, 500),
-            nn.ReLU(inplace=True),
-            nn.Linear(500, 128)
-        )
+    def forward_one(self, x):
+        x = self.conv(x)
+        x = x.view(x.size()[0], -1)
+        x = self.liner(x)
+        return x
 
-    def forward_once(self, x):
-        output = self.cnn1(x)
-        output = output.view(output.size()[0], -1)
-        output = self.fc1(output)
-        return output
-
-    def forward(self, input1, input2):
-        output1 = self.forward_once(input1)
-        output2 = self.forward_once(input2)
-        return output1, output2
-
+    def forward(self, x1, x2):
+        out1 = self.forward_one(x1)
+        out2 = self.forward_one(x2)
+        dis = torch.abs(out1 - out2)
+        out = self.out(dis)
+        #  return self.sigmoid(out)
+        return out
+    
 if __name__ == '__main__':
     input_tensor = torch.rand([1, 3, 100, 100])
-    model = SiameseNetwork()
+    model = Siamese()
     output_tensor1, output_tensor2 = model.forward(input_tensor, input_tensor)
     print(output_tensor1.shape, output_tensor2.shape)
